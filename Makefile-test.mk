@@ -74,6 +74,12 @@ test-integration: gomod-download envtest ginkgo mpi-operator-crd ray-operator-cr
 	API_LOG_LEVEL=$(INTEGRATION_API_LOG_LEVEL) \
 	$(GINKGO) $(GINKGO_ARGS) -procs=$(INTEGRATION_NPROCS) --race --junit-report=junit.xml --output-dir=$(ARTIFACTS) -v $(INTEGRATION_TARGET)
 
+#	$(GINKGO) $(GINKGO_ARGS) -procs=$(INTEGRATION_NPROCS) --race --junit-report=junit.xml --output-dir=$(ARTIFACTS) -v ./test/integration/controller/jobs/jobset/
+
+
+# $(GINKGO) $(GINKGO_ARGS) -procs=$(INTEGRATION_NPROCS) --race --junit-report=junit.xml --output-dir=$(ARTIFACTS) -v ./test/integration/controller/jobs/jobset/
+
+
 CREATE_KIND_CLUSTER ?= true
 .PHONY: test-e2e
 test-e2e: kustomize ginkgo yq gomod-download jobset-operator-crd kueuectl run-test-e2e-$(E2E_KIND_VERSION:kindest/node:v%=%)

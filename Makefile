@@ -26,13 +26,13 @@ GO_VERSION := $(shell awk '/^go /{print $$2}' go.mod|head -n1)
 
 GIT_TAG ?= $(shell git describe --tags --dirty --always)
 # Image URL to use all building/pushing image targets
-PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
-CLI_PLATFORMS ?= linux/amd64,linux/arm64,darwin/amd64,darwin/arm64
+PLATFORMS ?= linux/amd64
+CLI_PLATFORMS ?= linux/amd64
 DOCKER_BUILDX_CMD ?= docker buildx
 IMAGE_BUILD_CMD ?= $(DOCKER_BUILDX_CMD) build
 IMAGE_BUILD_EXTRA_OPTS ?=
 # TODO(#52): Add kueue to k8s gcr registry
-STAGING_IMAGE_REGISTRY := gcr.io/k8s-staging-kueue
+STAGING_IMAGE_REGISTRY := localhost:5000/kueue
 IMAGE_REGISTRY ?= $(STAGING_IMAGE_REGISTRY)
 IMAGE_NAME := kueue
 IMAGE_REPO ?= $(IMAGE_REGISTRY)/$(IMAGE_NAME)
@@ -173,6 +173,8 @@ shell-lint: ## Run shell linting.
 .PHONY: verify
 verify: gomod-verify ci-lint fmt-verify shell-lint toc-verify manifests generate update-helm generate-apiref prepare-release-branch
 	git --no-pager diff --exit-code config/components apis charts/kueue/templates client-go site/
+	# verify kjobctl
+	cd cmd/experimental/kjobctl && make verify
 
 ##@ Build
 
@@ -189,7 +191,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 image-local-build:
 	BUILDER=$(shell $(DOCKER_BUILDX_CMD) create --use)
 	$(MAKE) image-build PUSH=$(PUSH)
-	$(DOCKER_BUILDX_CMD) rm $$BUILDER
+# $(DOCKER_BUILDX_CMD) rm $$BUILDER
 
 # Build the multiplatform container image locally and push to repo.
 .PHONY: image-local-push
@@ -226,7 +228,7 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
-clean-manifests = (cd config/components/manager && $(KUSTOMIZE) edit set image controller=gcr.io/k8s-staging-kueue/kueue:$(RELEASE_BRANCH))
+clean-manifests = (cd config/components/manager && $(KUSTOMIZE) edit set image controller=localhost:5000/kueue/kueue:$(RELEASE_BRANCH))
 
 .PHONY: install
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
@@ -284,7 +286,7 @@ prepare-release-branch: yq kustomize ## Prepare the release branch with the rele
 ##@ Debug
 
 # Build an image that can be used with kubectl debug
-# Developers don't need to build this image, as it will be available as gcr.io/k8s-staging-kueue/debug
+# Developers don't need to build this image, as it will be available as localhost:5000/kueue/debug
 .PHONY: debug-image-push
 debug-image-push: ## Build and push the debug image to the registry
 	$(IMAGE_BUILD_CMD) -t $(IMAGE_REGISTRY)/debug:$(GIT_TAG) \
@@ -312,7 +314,7 @@ importer-image-build:
 importer-image-push: PUSH=--push
 importer-image-push: importer-image-build
 
-# Build a docker local gcr.io/k8s-staging-kueue/importer image
+# Build a docker local localhost:5000/kueue/importer image
 .PHONY: importer-image
 importer-image: PLATFORMS=linux/amd64
 importer-image: PUSH=--load
